@@ -1,0 +1,95 @@
+version: "3.9"
+
+services:
+    app:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        container_name: laravel_app
+        restart: unless-stopped
+        environment:
+            APP_ENV: local
+            APP_DEBUG: "true"
+            APP_URL: http://localhost
+            DB_HOST: mysql
+            REDIS_HOST: redis
+            QUEUE_CONNECTION: redis
+            CACHE_DRIVER: redis
+            SESSION_DRIVER: redis
+            MAIL_MAILER: smtp
+            MAIL_HOST: mailhog
+            MAIL_PORT: 1025
+        volumes:
+            - ./:/var/www/html
+        depends_on:
+            - mysql
+            - redis
+            - mailhog
+
+    queue:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        container_name: laravel_queue
+        restart: unless-stopped
+        working_dir: /var/www/html
+        command: sh -lc "php artisan queue:work --queue=default --sleep=1 --tries=3 --max-time=3600"
+        environment:
+            DB_HOST: mysql
+            REDIS_HOST: redis
+            QUEUE_CONNECTION: redis
+        volumes:
+            - ./:/var/www/html
+        depends_on:
+            - app
+            - redis
+
+    cron:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        container_name: laravel_cron
+        restart: unless-stopped
+        working_dir: /var/www/html
+        command: sh -lc 'printenv > /etc/environment && echo "* * * * * cd /var/www/html && php artisan schedule:run >> /var/log/cron.log 2>&1" | crontab - && cron -f'
+        environment:
+            DB_HOST: mysql
+            REDIS_HOST: redis
+            QUEUE_CONNECTION: redis
+        volumes:
+            - ./:/var/www/html
+        depends_on:
+            - app
+            - redis
+
+    mysql:
+        image: mysql:8.0
+        container_name: mysql
+        restart: unless-stopped
+        environment:
+            MYSQL_DATABASE: orthoplex
+            MYSQL_ROOT_PASSWORD: password
+            MYSQL_USER: root
+            MYSQL_PASSWORD: password
+        ports:
+            - "3306:3306"
+        volumes:
+            - mysql-data:/var/lib/mysql
+
+    redis:
+        image: redis:7-alpine
+        container_name: redis
+        restart: unless-stopped
+        ports:
+            - "6379:6379"
+
+    mailhog:
+        image: mailhog/mailhog:v1.0.1
+        container_name: mailhog
+        restart: unless-stopped
+        ports:
+            - "8025:8025"   # UI
+            - "1025:1025"   # SMTP
+
+volumes:
+    mysql-data:
