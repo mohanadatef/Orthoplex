@@ -67,10 +67,10 @@ services:
         container_name: mysql
         restart: unless-stopped
         environment:
-            MYSQL_DATABASE: orthoplex
-            MYSQL_ROOT_PASSWORD: password
-            MYSQL_USER: root
-            MYSQL_PASSWORD: password
+            MYSQL_DATABASE: laravel
+            MYSQL_ROOT_PASSWORD: root
+            MYSQL_USER: laravel
+            MYSQL_PASSWORD: secret
         ports:
             - "3306:3306"
         volumes:

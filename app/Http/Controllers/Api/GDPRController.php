@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use App\Jobs\ExportUserDataJob;
 use App\Models\DeleteRequest;
 use Illuminate\Support\Facades\Auth;
+use OpenApi\Annotations as OA;
 
 /**
  * @OA\Post(

@@ -8,9 +8,8 @@ use Illuminate\Http\Request;
 use App\Services\TwoFactorService;
 use App\Http\Requests\TwoFactorVerifyLoginRequest;
 use App\Http\Requests\TwoFactorEnableRequest;
+use OpenApi\Annotations as OA;
 use PragmaRX\Google2FA\Google2FA;
-use Tymon\JWTAuth\Facades\JWTAuth;
-use App\Models\User;
 /**
  * @OA\Post(
  *     path="/api/v1/2fa/generate",

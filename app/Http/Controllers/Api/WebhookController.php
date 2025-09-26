@@ -4,6 +4,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\Webhook;
 use Illuminate\Support\Facades\Http;
+use OpenApi\Annotations as OA;
 
 /**
  * @OA\Post(

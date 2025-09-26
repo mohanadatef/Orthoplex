@@ -19,6 +19,8 @@ This package is a skeleton project prepared with:
 3. Enter app container:
    ```bash
    docker exec -it laravel_app bash
+   docker-compose exec app php artisan migrate
+
    ```
 4. Inside container:
    ```bash
@@ -26,8 +28,8 @@ This package is a skeleton project prepared with:
    php artisan key:generate
    php artisan jwt:secret
    php artisan migrate --force
-   php artisan db:seed --class=PermissionSeeder
-   php artisan l5-swagger:generate || true
+   php artisan db:seed --class=RolesAndPermissionsSeeder
+   php artisan l5-swagger:generate
    ```
 5. Use Postman to test endpoints under `routes/api.php`.
 

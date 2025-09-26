@@ -6,8 +6,8 @@ use App\Http\Requests\ResendVerificationRequest;
 use Illuminate\Http\Request;
 use App\Models\User;
 use Illuminate\Auth\Events\Verified;
-use Illuminate\Support\Facades\URL;
 use App\Notifications\VerifyEmailNotification;
+use OpenApi\Annotations as OA;
 
 /**
  * @OA\Post(

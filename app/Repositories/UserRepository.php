@@ -2,7 +2,7 @@
 namespace App\Repositories;
 use App\Models\User;
 
-class UserRepository implements UserRepositoryInterface {
+class UserRepository  {
     protected $model;
     public function __construct(User $model) {
         $this->model = $model;

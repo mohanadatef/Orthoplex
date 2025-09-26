@@ -45,6 +45,7 @@ return [
                  */
                 'annotations' => [
                     base_path('app'),
+                    base_path('routes'),
                 ],
             ],
         ],
@@ -320,11 +321,11 @@ return [
             app_path('Http/Controllers'),
             app_path('Http/Requests'),
             app_path('Models'),
-            app_path('Documentation'), // إذا أنشأت مجلد Documentation
+            app_path('Swagger'),
         ],
         'exclude' => [
-            // base_path('app/Http/Controllers/Auth'), // استبعد إذا كنت تريد
-            // base_path('app/Http/Controllers/Admin'), // استبعد إذا كنت تريد
+            // base_path('app/Http/Controllers/Auth'),
+            // base_path('app/Http/Controllers/Admin'),
         ],
     ],
 ];

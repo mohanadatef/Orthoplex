@@ -6,6 +6,7 @@ use App\Services\AuthService;
 use App\DTOs\UserDTO;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\LoginRequest;
+use OpenApi\Annotations as OA;
 
 /**
  * @OA\Post(
