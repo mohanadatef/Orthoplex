@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\WebhookDlq;
 use App\Services\WebhookService;
+use Illuminate\Queue\Jobs\Job;
 
 class RetryDlqWebhooksJob extends Job
 {
@@ -13,5 +14,15 @@ class RetryDlqWebhooksJob extends Job
             $webhook = new \App\Models\Webhook($dlq->toArray());
             $service->send($webhook);
         });
+    }
+
+    public function getJobId()
+    {
+        // TODO: Implement getJobId() method.
+    }
+
+    public function getRawBody()
+    {
+        // TODO: Implement getRawBody() method.
     }
 }

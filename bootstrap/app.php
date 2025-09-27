@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -36,7 +37,8 @@ return Application::configure(basePath: dirname(__DIR__))
         //
     })
     ->withSchedule(function (Schedule $schedule) {
-        $schedule->call(new \App\Console\Commands\AggregateLoginDaily)->dailyAt('00:30');
         $schedule->job(new \App\Jobs\DispatchLoginEventsBatchJob())->everyMinute();
         $schedule->job(new \App\Jobs\RetryDlqWebhooksJob())->hourly();
+        $schedule->call('analytics:aggregate-logins')->dailyAt('00:30');
+
     })->create();

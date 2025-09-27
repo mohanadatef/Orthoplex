@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\LoginEvent;
 use App\Models\Org;
 use App\Models\Webhook;
+use Illuminate\Queue\Jobs\Job;
 use Illuminate\Support\Facades\DB;
 
 class DispatchLoginEventsBatchJob extends Job
@@ -32,5 +33,15 @@ class DispatchLoginEventsBatchJob extends Job
         DB::table('login_events')
             ->whereIn('id', $events->pluck('id'))
             ->update(['batched_at' => now()]);
+    }
+
+    public function getJobId()
+    {
+        // TODO: Implement getJobId() method.
+    }
+
+    public function getRawBody()
+    {
+        // TODO: Implement getRawBody() method.
     }
 }
