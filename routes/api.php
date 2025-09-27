@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\GDPRController;
 use App\Http\Controllers\Api\ApiKeyController;
 use App\Http\Controllers\Api\WebhookController;
 use App\Http\Controllers\Api\AnalyticsController;
+use App\Http\Controllers\Api\OrgProvisioningController;
 
 Route::prefix('v1')
     ->middleware(['localization'])
@@ -71,6 +72,8 @@ Route::prefix('v1')
         Route::post('orgs', [OrgController::class,'store'])->middleware('can:orgs.create');
         Route::put('orgs/{org}', [OrgController::class,'update'])->middleware('can:orgs.update');
         Route::delete('orgs/{org}', [OrgController::class,'destroy'])->middleware('can:orgs.delete');
+        Route::post('/orgs/provision', [OrgProvisioningController::class,'provision'])
+            ->middleware(['api.key']);
     });
 
     /**
@@ -97,6 +100,9 @@ Route::prefix('v1')
             ->middleware('can:gdpr.approve');
         Route::post('gdpr/delete/{id}/reject', [GDPRController::class,'reject'])
             ->middleware('can:gdpr.approve');
+        Route::get('gdpr/export/download', [GDPRController::class,'download'])
+            ->name('gdpr.export.download')
+            ->middleware('signed');
     });
 
     /**

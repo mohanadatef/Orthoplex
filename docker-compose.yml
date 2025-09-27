@@ -75,21 +75,23 @@ services:
             - "3306:3306"
         volumes:
             - mysql-data:/var/lib/mysql
-
+            -
     redis:
-        image: redis:7-alpine
-        container_name: redis
-        restart: unless-stopped
+        image: redis:7
         ports:
             - "6379:6379"
-
+        volumes:
+            - redis_data:/data
+        networks:
+            - laravel
+            -
     mailhog:
-        image: mailhog/mailhog:v1.0.1
-        container_name: mailhog
-        restart: unless-stopped
+        image: mailhog/mailhog
         ports:
-            - "8025:8025"   # UI
             - "1025:1025"   # SMTP
+            - "8025:8025"   # Web UI
+        networks:
+            - laravel
 
 volumes:
     mysql-data:

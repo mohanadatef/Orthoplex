@@ -6,43 +6,47 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Org\OrgStoreRequest;
 use App\Http\Requests\Org\OrgUpdateRequest;
 use App\Services\OrgService;
-use App\DTOs\OrgDTO;
-use App\Models\Org;
 use Illuminate\Http\JsonResponse;
 use OpenApi\Annotations as OA;
 
+/**
+ * @OA\Tag(
+ *   name="Orgs",
+ *   description="Organization management endpoints (internal, JWT + RBAC)"
+ * )
+ */
 class OrgController extends Controller
 {
     public function __construct(private OrgService $service) {}
 
     /**
+     * @OA\Get(
+     *   path="/api/v1/orgs",
+     *   tags={"Orgs"},
+     *   summary="List organizations current user belongs to",
+     *   security={{"bearerAuth":{}}},
+     *   @OA\Response(response=200, description="List of orgs")
+     * )
+     */
+    public function index(): JsonResponse
+    {
+        $orgs = $this->service->list(auth()->id());
+        return response()->json($orgs);
+    }
+
+    /**
      * @OA\Post(
      *   path="/api/v1/orgs",
      *   tags={"Orgs"},
-     *   summary="Create new organization",
-     *   @OA\RequestBody(
-     *     required=true,
-     *     @OA\JsonContent(
-     *       required={"name"},
-     *       @OA\Property(property="name", type="string"),
-     *       @OA\Property(property="webhook_url", type="string"),
-     *       @OA\Property(property="webhook_secret", type="string")
-     *     )
-     *   ),
+     *   summary="Create a new organization",
+     *   security={{"bearerAuth":{}}},
      *   @OA\Response(response=201, description="Org created")
      * )
      */
     public function store(OrgStoreRequest $request): JsonResponse
     {
-        $dto = new OrgDTO(
-            $request->validated('name'),
-            $request->validated('webhook_url'),
-            $request->validated('webhook_secret'),
-        );
-
-        $org = $this->service->create($dto);
-
-        return response()->json($org,201);
+        $org = $this->service->create($request->validated(), auth()->id());
+        return response()->json(['org' => $org], 201);
     }
 
     /**
@@ -50,35 +54,39 @@ class OrgController extends Controller
      *   path="/api/v1/orgs/{id}",
      *   tags={"Orgs"},
      *   summary="Update organization",
+     *   security={{"bearerAuth":{}}},
      *   @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *   @OA\Response(response=200, description="Org updated")
      * )
      */
-    public function update(OrgUpdateRequest $request, Org $org): JsonResponse
+    public function update(OrgUpdateRequest $request, int $id): JsonResponse
     {
-        $dto = new OrgDTO(
-            $request->validated('name') ?? $org->name,
-            $request->validated('webhook_url') ?? $org->webhook_url,
-            $request->validated('webhook_secret') ?? $org->webhook_secret,
-        );
+        $this->authorize('update', \App\Models\Org::class);
 
-        $this->service->update($org,$dto);
+        $org = $this->service->update($id, $request->validated());
+        if (! $org) return response()->json(['message' => 'Org not found'], 404);
 
-        return response()->json(['message'=>'Org updated successfully']);
+        return response()->json(['org' => $org]);
     }
 
     /**
      * @OA\Delete(
      *   path="/api/v1/orgs/{id}",
      *   tags={"Orgs"},
-     *   summary="Delete organization",
+     *   summary="Delete (soft delete) organization",
+     *   security={{"bearerAuth":{}}},
      *   @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
      *   @OA\Response(response=200, description="Org deleted")
      * )
      */
-    public function destroy(Org $org): JsonResponse
+    public function destroy(int $id): JsonResponse
     {
-        $this->service->delete($org);
-        return response()->json(['message'=>'Org deleted successfully']);
+        $this->authorize('delete', \App\Models\Org::class);
+
+        if (! $this->service->delete($id)) {
+            return response()->json(['message' => 'Org not found'], 404);
+        }
+
+        return response()->json(['message' => 'Org deleted']);
     }
 }

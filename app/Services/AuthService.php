@@ -9,9 +9,12 @@ use Tymon\JWTAuth\Facades\JWTAuth;
 
 class AuthService
 {
+    protected $userService;
     public function __construct(
-        private readonly AuthRepositoryInterface $repository
-    ) {}
+        private readonly AuthRepositoryInterface $repository,UserService $userService
+    ) {
+        $this->userService = $userService;
+    }
 
     public function register(UserDTO $dto)
     {
@@ -38,6 +41,14 @@ class AuthService
 
         if ($user->twoFactorSecret && $user->twoFactorSecret->enabled) {
             return ['2fa_required' => true];
+        }
+        $ok = $this->userService->updateOptimistic($user, [
+            'last_login_at' => now(),
+            'login_count'   => $user->login_count + 1,
+        ]);
+
+        if (! $ok) {
+            throw new \RuntimeException('Conflict: user record was modified concurrently.');
         }
         \App\Models\LoginEvent::create([
             'user_id' => $user->id,

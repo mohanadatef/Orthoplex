@@ -34,4 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //
+    })
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->call(new \App\Console\Commands\AggregateLoginDaily)->dailyAt('00:30');
+        $schedule->job(new \App\Jobs\DispatchLoginEventsBatchJob())->everyMinute();
+        $schedule->job(new \App\Jobs\RetryDlqWebhooksJob())->hourly();
     })->create();

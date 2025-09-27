@@ -30,9 +30,21 @@ class RouteServiceProvider extends ServiceProvider
             $ip = $request->ip();
 
             return [
-                Limit::perMinute(5)->by($email.$ip)->response(function () {
+                Limit::perMinute(5)->by($email . '|' . $ip)->response(function () {
                     return response()->json([
                         'message' => 'Too many login attempts. Please try again in 1 minute.'
+                    ], 429);
+                }),
+            ];
+        });
+
+        RateLimiter::for('delete-requests', function ($request) {
+            $userKey = $request->user()?->id ?: $request->ip();
+
+            return [
+                Limit::perMinute(3)->by($userKey)->response(function () {
+                    return response()->json([
+                        'message' => 'Too many delete requests. Please try again later.'
                     ], 429);
                 }),
             ];

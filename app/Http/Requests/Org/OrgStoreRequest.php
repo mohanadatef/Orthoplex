@@ -15,8 +15,6 @@ class OrgStoreRequest extends FormRequest
     {
         return [
             'name'           => ['required','string','max:255'],
-            'webhook_url'    => ['nullable','url'],
-            'webhook_secret' => ['nullable','string','max:255'],
         ];
     }
 }

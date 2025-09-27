@@ -1,30 +1,38 @@
 <?php
-namespace App\Console\Commands;
-use Illuminate\Console\Command;
-use App\Models\LoginEvent;
-use App\Models\LoginDaily;
-use Carbon\Carbon;
 
-class AggregateLoginDaily extends Command {
-    protected $signature = 'analytics:aggregate-logins {date?}';
+namespace App\Console\Commands;
+
+use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
+
+class AggregateLoginDaily extends Command
+{
+    protected $signature = 'logins:aggregate-daily';
     protected $description = 'Aggregate login events into login_daily table';
 
-    public function handle() {
-        $date = $this->argument('date') ?? now()->toDateString();
-        $start = Carbon::parse($date)->startOfDay();
-        $end = Carbon::parse($date)->endOfDay();
+    public function handle(): void
+    {
+        $this->info('Aggregating login events...');
 
-        $rows = LoginEvent::whereBetween('occurred_at', [$start, $end])
-            ->selectRaw('user_id, COUNT(*) as cnt')
-            ->groupBy('user_id')->get();
+        $events = DB::table('login_events')
+            ->selectRaw('user_id, DATE(created_at) as login_date, COUNT(*) as total')
+            ->groupBy('user_id','date')
+            ->get();
 
-        foreach ($rows as $r) {
-            LoginDaily::updateOrCreate(
-                ['date' => $date, 'user_id' => $r->user_id],
-                ['count' => $r->cnt]
+        foreach ($events as $row) {
+            DB::table('login_daily')->updateOrInsert(
+                [
+                    'user_id'    => $row->user_id,
+                    'date' => $row->login_date,
+                ],
+                [
+                    'count'      => $row->total,
+                    'updated_at' => now(),
+                    'created_at' => now(),
+                ]
             );
         }
 
-        $this->info('Aggregated for ' . $date);
+        $this->info('Aggregation complete.');
     }
 }

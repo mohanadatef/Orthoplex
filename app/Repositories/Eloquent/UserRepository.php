@@ -27,4 +27,15 @@ class UserRepository implements UserRepositoryInterface
     {
         return $user->restore();
     }
+
+    public function updateOptimistic(User $user, array $data): bool
+    {
+        $affected = User::where('id', $user->id)
+            ->where('version', $user->version)
+            ->update(array_merge($data, [
+                'version' => $user->version + 1
+            ]));
+
+        return $affected > 0;
+    }
 }

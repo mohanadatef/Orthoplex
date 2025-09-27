@@ -2,36 +2,29 @@
 
 namespace App\Services;
 
-use App\DTOs\OrgDTO;
 use App\Repositories\Contracts\OrgRepositoryInterface;
-use App\Models\Org;
 
 class OrgService
 {
-    public function __construct(
-        private readonly OrgRepositoryInterface $repository
-    ) {}
+    public function __construct(private OrgRepositoryInterface $repository) {}
 
-    public function create(OrgDTO $dto): Org
+    public function list(int $userId)
     {
-        return $this->repository->create([
-            'name'           => $dto->name,
-            'webhook_url'    => $dto->webhook_url,
-            'webhook_secret' => $dto->webhook_secret,
-        ]);
+        return $this->repository->getByUserId($userId);
     }
 
-    public function update(Org $org, OrgDTO $dto): bool
+    public function create(array $data, int $userId)
     {
-        return $this->repository->update($org, [
-            'name'           => $dto->name,
-            'webhook_url'    => $dto->webhook_url,
-            'webhook_secret' => $dto->webhook_secret,
-        ]);
+        return $this->repository->createWithOwner($data, $userId);
     }
 
-    public function delete(Org $org): bool
+    public function update(int $id, array $data)
     {
-        return $this->repository->delete($org);
+        return $this->repository->update($id, $data);
+    }
+
+    public function delete(int $id): bool
+    {
+        return $this->repository->delete($id);
     }
 }

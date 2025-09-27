@@ -2,28 +2,35 @@
 
 namespace App\Repositories\Eloquent;
 
-use App\Repositories\Contracts\OrgRepositoryInterface;
 use App\Models\Org;
+use App\Repositories\Contracts\OrgRepositoryInterface;
 
 class OrgRepository implements OrgRepositoryInterface
 {
-    public function create(array $data): Org
+    public function getByUserId(int $userId)
     {
-        return Org::create($data);
+        return Org::whereHas('users', fn($q) => $q->where('user_id', $userId))->get();
     }
 
-    public function update(Org $org, array $data): bool
+    public function createWithOwner(array $data, int $userId)
     {
-        return $org->update($data);
+        $org = Org::create($data);
+        $org->users()->attach($userId, ['role' => 'owner']);
+        return $org;
     }
 
-    public function findById(int $id): ?Org
+    public function update(int $id, array $data)
     {
-        return Org::find($id);
+        $org = Org::find($id);
+        if (! $org) return null;
+
+        $org->update($data);
+        return $org;
     }
 
-    public function delete(Org $org): bool
+    public function delete(int $id): bool
     {
-        return $org->delete();
+        $org = Org::find($id);
+        return $org ? (bool) $org->delete() : false;
     }
 }

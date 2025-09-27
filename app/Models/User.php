@@ -14,10 +14,11 @@ class User extends Authenticatable implements JWTSubject , MustVerifyEmail
 {
     use Notifiable, HasRoles,MustVerifyEmailTrait,SoftDeletes;
 
-    protected $fillable = ['name','email','password','locale','active'];
+    protected $fillable = ['name','email','password','locale','active','login_count'];
     protected $hidden = ['password','remember_token'];
     protected $casts = ['email_verified_at' => 'datetime', 'active' => 'boolean'];
     protected $dates = ['deleted_at'];
+    protected $versionColumn = 'version';
     public function getJWTIdentifier() { return $this->getKey(); }
     public function getJWTCustomClaims() { return []; }
 

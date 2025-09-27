@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Traits\QueryHelpers;
 use Illuminate\Contracts\Pagination\CursorPaginator;
@@ -45,5 +46,10 @@ class UserService
     {
         $user = $this->repository->findById($id, true);
         return ($user && $user->trashed()) ? $this->repository->restore($user) : false;
+    }
+
+    public function updateOptimistic(User $user, array $data): bool
+    {
+        return $this->repository->updateOptimistic($user, $data);
     }
 }

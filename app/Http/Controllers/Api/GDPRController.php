@@ -8,13 +8,18 @@ use App\Http\Requests\GDPR\DeleteAccountRequest;
 use App\DTOs\DeleteRequestDTO;
 use App\Services\GDPRService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use OpenApi\Annotations as OA;
+use App\Models\GdprExport;
+use Illuminate\Support\Facades\Storage;
 
 class GDPRController extends Controller
 {
     public function __construct(
         private readonly GDPRService $gdprService
-    ) {}
+    )
+    {
+    }
 
     /**
      * @OA\Post(
@@ -68,10 +73,10 @@ class GDPRController extends Controller
         $req = $this->gdprService->approve($id);
 
         if (!$req) {
-            return response()->json(['message'=>'Already processed or not found'],400);
+            return response()->json(['message' => 'Already processed or not found'], 400);
         }
 
-        return response()->json(['message'=>'Delete request approved']);
+        return response()->json(['message' => 'Delete request approved']);
     }
 
     /**
@@ -91,9 +96,36 @@ class GDPRController extends Controller
         $req = $this->gdprService->reject($id);
 
         if (!$req) {
-            return response()->json(['message'=>'Already processed or not found'],400);
+            return response()->json(['message' => 'Already processed or not found'], 400);
         }
 
-        return response()->json(['message'=>'Delete request rejected']);
+        return response()->json(['message' => 'Delete request rejected']);
     }
+
+    public function download(Request $request)
+    {
+        $token = $request->query('token');
+
+        $export = GdprExport::where('token', $token)->first();
+        if (!$export) {
+            return response()->json(['message' => 'Invalid token'], 404);
+        }
+
+        if ($export->expires_at->isPast()) {
+            return response()->json(['message' => 'Link expired'], 410);
+        }
+
+        if ($export->downloaded_at) {
+            return response()->json(['message' => 'Link already used'], 410);
+        }
+
+        $export->forceFill(['downloaded_at' => now()])->save();
+
+        if (!Storage::disk($export->disk)->exists($export->path)) {
+            return response()->json(['message' => 'File not found'], 404);
+        }
+
+        return Storage::disk($export->disk)->download(basename($export->path), basename($export->path));
+    }
+
 }

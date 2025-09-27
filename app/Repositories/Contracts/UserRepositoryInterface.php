@@ -11,4 +11,5 @@ interface UserRepositoryInterface
     public function findById(int $id, bool $withTrashed = false): ?User;
     public function softDelete(User $user): bool;
     public function restore(User $user): bool;
+    public function updateOptimistic(User $user, array $data): bool;
 }
