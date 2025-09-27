@@ -2,18 +2,24 @@
 
 namespace App\Services;
 
-use App\Models\AuditLog;
+use App\DTOs\AuditLogDTO;
+use App\Repositories\Contracts\AuditLogRepositoryInterface;
 
 class AuditLogService
 {
-    public function log(?int $userId, string $action, array $metadata = []): void
+    public function __construct(
+        private readonly AuditLogRepositoryInterface $repository
+    ) {}
+
+    public function log(AuditLogDTO $dto): void
     {
-        AuditLog::create([
-            'user_id'    => $userId,
-            'action'     => $action,
-            'ip_address' => request()->ip(),
-            'user_agent' => request()->userAgent(),
-            'metadata'   => $metadata,
+        $this->repository->create([
+            'user_id'    => $dto->userId,
+            'action'     => $dto->action,
+            'ip_address' => $dto->ipAddress,
+            'user_agent' => $dto->userAgent,
+            'metadata'   => $dto->metadata ? json_encode($dto->metadata) : null,
+            'created_at' => now(),
         ]);
     }
 }

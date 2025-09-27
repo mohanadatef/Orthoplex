@@ -3,22 +3,31 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Http\Request;
 use App\Services\AuditLogService;
+use App\DTOs\AuditLogDTO;
+use Symfony\Component\HttpFoundation\Response;
 
 class AuditLogMiddleware
 {
-    public function __construct(private AuditLogService $audit) {}
+    public function __construct(private AuditLogService $service) {}
 
-    public function handle($request, Closure $next, string $action)
+    public function handle(Request $request, Closure $next, string $action): Response
     {
         $response = $next($request);
 
-        if ($response->status() < 400) {
-            $this->audit->log(
-                optional($request->user())->id,
-                $action,
-                ['url' => $request->path(), 'method' => $request->method()]
+        if ($request->user()) {
+            $dto = new AuditLogDTO(
+                userId: $request->user()->id,
+                action: $action,
+                ipAddress: $request->ip(),
+                userAgent: $request->userAgent(),
+                metadata: [
+                    'url' => $request->fullUrl(),
+                    'method' => $request->method(),
+                ]
             );
+            $this->service->log($dto);
         }
 
         return $response;

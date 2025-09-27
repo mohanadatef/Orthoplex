@@ -2,33 +2,39 @@
 
 namespace App\Services;
 
-use App\Models\MagicLink;
-use App\Models\User;
+use App\DTOs\MagicLinkDTO;
+use App\Repositories\Contracts\MagicLinkRepositoryInterface;
 use Illuminate\Support\Str;
 use Carbon\Carbon;
 
 class MagicLinkService
 {
-    public function createLink(User $user, int $ttlMinutes = 10): MagicLink
+    public function __construct(
+        private readonly MagicLinkRepositoryInterface $repository
+    ) {}
+
+    public function createLink($user)
     {
-        return MagicLink::create([
-            'user_id' => $user->id,
-            'token' => Str::random(64),
-            'expires_at' => Carbon::now()->addMinutes($ttlMinutes)
+        $dto = new MagicLinkDTO(
+            $user->id,
+            Str::random(60),
+            Carbon::now()->addMinutes(15) // expires after 15 minutes
+        );
+
+        return $this->repository->create([
+            'user_id'    => $dto->user_id,
+            'token'      => $dto->token,
+            'expires_at' => $dto->expires_at,
         ]);
     }
 
-    public function validateLink(string $token): ?MagicLink
+    public function validateLink(string $token)
     {
-        $link = MagicLink::where('token',$token)->where('used',false)->first();
-        if(!$link || $link->isExpired()) return null;
-
-        return $link;
+        return $this->repository->findByToken($token);
     }
 
-    public function markUsed(MagicLink $link): void
+    public function markUsed($link)
     {
-        $link->used = true;
-        $link->save();
+        return $this->repository->markUsed($link);
     }
 }

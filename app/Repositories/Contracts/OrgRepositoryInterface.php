@@ -1,9 +1,13 @@
 <?php
+
 namespace App\Repositories\Contracts;
+
 use App\Models\Org;
 
-interface OrgRepositoryInterface {
+interface OrgRepositoryInterface
+{
     public function create(array $data): Org;
-    public function find(int $id): ?Org;
-    public function all();
+    public function update(Org $org, array $data): bool;
+    public function findById(int $id): ?Org;
+    public function delete(Org $org): bool;
 }

@@ -1,30 +1,54 @@
 <?php
+
 namespace App\Http\Controllers\Api;
+
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Analytics\InactiveUsersRequest;
+use App\Services\AnalyticsService;
+use Illuminate\Http\JsonResponse;
+use OpenApi\Annotations as OA;
 
-class AnalyticsController extends Controller {
-    public function topLogins()
+class AnalyticsController extends Controller
+{
+    public function __construct(
+        private readonly AnalyticsService $analyticsService
+    )
     {
-        $data = \DB::table('login_events')
-            ->select('user_id', \DB::raw('count(*) as total'))
-            ->groupBy('user_id')
-            ->orderByDesc('total')
-            ->limit(10)
-            ->get();
+    }
 
+    /**
+     * @OA\Get(
+     *   path="/api/users/top-logins",
+     *   summary="Get users with most logins",
+     *   tags={"Analytics"},
+     *   @OA\Response(response=200, description="Top users by login count")
+     * )
+     */
+    public function topLogins(): JsonResponse
+    {
+        $data = $this->analyticsService->topLogins();
         return response()->json($data);
     }
 
-    public function inactive()
+    /**
+     * @OA\Get(
+     *   path="/api/users/inactive",
+     *   summary="Get inactive users",
+     *   tags={"Analytics"},
+     *   @OA\Parameter(
+     *      name="days",
+     *      in="query",
+     *      description="Number of days without login",
+     *      required=false,
+     *      @OA\Schema(type="integer", default=30)
+     *   ),
+     *   @OA\Response(response=200, description="List of inactive users")
+     * )
+     */
+    public function inactive(InactiveUsersRequest $request): JsonResponse
     {
-        $days = request()->input('days', 30);
-
-        $data = \DB::table('users')
-            ->leftJoin('login_events', 'users.id', '=', 'login_events.user_id')
-            ->select('users.id','users.email', \DB::raw('max(login_events.created_at) as last_login'))
-            ->groupBy('users.id','users.email')
-            ->havingRaw('last_login IS NULL OR last_login < DATE_SUB(NOW(), INTERVAL ? DAY)', [$days])
-            ->get();
+        $days = $request->validated('days', 30);
+        $data = $this->analyticsService->inactive($days);
 
         return response()->json($data);
     }

@@ -1,96 +1,57 @@
 <?php
+
 namespace App\Services;
 
-use App\Models\TwoFactorSecret;
-use App\Models\TwoFactorBackupCode;
-use Illuminate\Support\Str;
+use App\Repositories\Contracts\TwoFactorRepositoryInterface;
 use PragmaRX\Google2FA\Google2FA;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Crypt;
 
 class TwoFactorService
 {
-    protected $google2fa;
+    public function __construct(
+        private readonly TwoFactorRepositoryInterface $repository,
+        private readonly Google2FA $google2fa
+    ) {}
 
-    public function __construct(Google2FA $google2fa)
-    {
-        $this->google2fa = $google2fa;
-    }
-
-    /**
-     * Generate and store encrypted secret (not enabled until user confirms)
-     */
     public function generateSecret(int $userId): string
     {
         $secret = $this->google2fa->generateSecretKey();
-        // store encrypted
-        TwoFactorSecret::updateOrCreate(
-            ['user_id' => $userId],
-            ['secret' => Crypt::encryptString($secret), 'enabled' => false]
-        );
+        $this->repository->saveSecret($userId,$secret);
         return $secret;
     }
 
-    /**
-     * Enable 2FA after verifying the code
-     */
-    public function enable2FA(int $userId): ?TwoFactorSecret
-    {
-        $secret = TwoFactorSecret::where('user_id', $userId)->first();
-        if (!$secret) return null;
-        $secret->enabled = true;
-        $secret->save();
-        return $secret;
-    }
-
-    /**
-     * Generate N backup codes: return raw codes to user, store hashed in DB.
-     */
-    public function generateBackupCodes(int $userId, int $count = 8): array
-    {
-        // remove old codes
-        TwoFactorBackupCode::where('user_id', $userId)->delete();
-
-        $raw = [];
-        for ($i = 0; $i < $count; $i++) {
-            // human-friendly code: 8 chars uppercase alnum
-            $code = Str::upper(Str::random(8));
-            TwoFactorBackupCode::create([
-                'user_id' => $userId,
-                'code' => Hash::make($code),
-                'used' => false
-            ]);
-            $raw[] = $code;
-        }
-        return $raw;
-    }
-
-    /**
-     * Verify provided code (TOTP) or backup code.
-     * If backup code matches, mark it used.
-     */
     public function verifyCode(int $userId, string $code): bool
     {
-        $secretModel = TwoFactorSecret::where('user_id', $userId)->where('enabled', true)->first();
-        if ($secretModel) {
-            $secret = Crypt::decryptString($secretModel->secret);
-            // allow small window (default verifyKey uses window 0). You can use verifyKeyNew if needed.
-            if ($this->google2fa->verifyKey($secret, $code)) {
-                return true;
-            }
-        }
+        $user = $this->repository->getUser($userId);
+        if (! $user || ! $user->two_factor_secret) return false;
 
-        // check backup codes (hashed)
-        $backup = TwoFactorBackupCode::where('user_id', $userId)->where('used', false)->get();
-        foreach ($backup as $b) {
-            if (Hash::check($code, $b->code)) {
-                // mark used (single-use)
-                $b->used = true;
-                $b->save();
-                return true;
-            }
-        }
-
-        return false;
+        return $this->google2fa->verifyKey($user->two_factor_secret, $code);
     }
+
+    public function enable2FA(int $userId): void
+    {
+        $this->repository->enable($userId);
+        $user = $this->repository->getUser($userId);
+        $user->notify(new \App\Notifications\TwoFactorEnabledNotification());
+    }
+
+    public function disable2FA(int $userId): void
+    {
+        $this->repository->disable($userId);
+        $user = $this->repository->getUser($userId);
+        $user->notify(new \App\Notifications\TwoFactorDisabledNotification());
+
+    }
+
+    public function generateBackupCodes(int $userId): array
+    {
+        $codes = collect(range(1,8))->map(fn() => bin2hex(random_bytes(4)))->toArray();
+        $this->repository->storeBackupCodes($userId, $codes);
+        return $codes;
+    }
+
+    public function getUser(int $userId)
+    {
+        return $this->repository->getUser($userId);
+    }
+
 }

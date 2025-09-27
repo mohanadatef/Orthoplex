@@ -2,34 +2,40 @@
 
 namespace App\Services;
 
-use App\Models\Invitation;
+use App\DTOs\InvitationDTO;
+use App\Repositories\Contracts\InvitationRepositoryInterface;
 use Illuminate\Support\Str;
 
 class InvitationService
 {
-    public function create(int $orgId, string $email, string $role = 'member'): Invitation
+    public function __construct(
+        private readonly InvitationRepositoryInterface $repository
+    ) {}
+
+    public function create(int $orgId, string $email, string $role)
     {
-        return Invitation::create([
-            'org_id' => $orgId,
-            'email'  => $email,
-            'role'   => $role,
-            'token'  => Str::random(64),
+        $dto = new InvitationDTO($orgId, $email, $role);
+
+        return $this->repository->create([
+            'org_id' => $dto->org_id,
+            'email'  => $dto->email,
+            'role'   => $dto->role,
+            'token'  => Str::random(40),
+            'status' => 'pending',
         ]);
     }
 
     public function accept(string $token, int $userId): bool
     {
-        $inv = Invitation::where('token',$token)->where('accepted',false)->first();
-        if(!$inv) return false;
+        $inv = $this->repository->findByToken($token);
 
-        \DB::table('org_user')->insert([
-            'org_id' => $inv->org_id,
-            'user_id'=> $userId,
-            'role'   => $inv->role,
-        ]);
+        if (! $inv || $inv->status !== 'pending') {
+            return false;
+        }
 
-        $inv->accepted = true;
-        $inv->save();
+        $this->repository->markAccepted($inv, $userId);
+
+        $inv->org->users()->attach($userId, ['role' => $inv->role]);
 
         return true;
     }

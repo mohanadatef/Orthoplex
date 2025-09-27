@@ -2,22 +2,27 @@
 
 namespace App\Notifications;
 
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
 
-class MagicLinkNotification extends Notification
+class MagicLinkNotification extends Notification implements ShouldQueue
 {
-    protected $url;
-    public function __construct(string $url) { $this->url = $url; }
+    use Queueable;
 
-    public function via($notifiable) { return ['mail']; }
+    public function __construct(private string $url) {}
 
-    public function toMail($notifiable)
+    public function via($notifiable): array
+    {
+        return ['mail'];
+    }
+
+    public function toMail($notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Your Magic Login Link')
-            ->line('Click the button below to login:')
-            ->action('Login', $this->url)
-            ->line('This link will expire soon and can only be used once.');
+            ->subject(__('messages.magic_link_subject'))
+            ->line(__('messages.magic_link_body'))
+            ->action(__('messages.magic_link_button'), $this->url);
     }
 }

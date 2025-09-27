@@ -1,40 +1,30 @@
 <?php
+
 namespace App\Notifications;
 
+use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Config;
 
-class VerifyEmailNotification extends Notification
+class VerifyEmailNotification extends Notification implements ShouldQueue
 {
-    protected $user;
+    use Queueable;
 
-    public function __construct($user)
-    {
-        $this->user = $user;
-    }
+    public function __construct(private $user) {}
 
-    public function via($notifiable)
+    public function via($notifiable): array
     {
         return ['mail'];
     }
 
-    public function toMail($notifiable)
+    public function toMail($notifiable): MailMessage
     {
-        $expiration = Carbon::now()->addMinutes(Config::get('auth.verification.expire', 60));
-
-        $signedUrl = URL::temporarySignedRoute(
-            'verification.verify',
-            $expiration,
-            ['id' => $notifiable->getKey(), 'hash' => sha1($notifiable->getEmailForVerification())]
-        );
+        $verifyUrl = url("/api/v1/email/verify/{$this->user->id}/" . sha1($this->user->email));
 
         return (new MailMessage)
-            ->subject(__('Verify Email Address'))
-            ->line(__('Please click the button below to verify your email address.'))
-            ->action(__('Verify Email Address'), $signedUrl)
-            ->line(__('If you did not create an account, no further action is required.'));
+            ->subject(__('messages.verify_email_subject'))
+            ->line(__('messages.verify_email_body'))
+            ->action(__('messages.verify_email_button'), $verifyUrl);
     }
 }

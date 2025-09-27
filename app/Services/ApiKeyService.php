@@ -2,41 +2,57 @@
 
 namespace App\Services;
 
+use App\DTOs\ApiKeyDTO;
+use App\Repositories\Contracts\ApiKeyRepositoryInterface;
+use Illuminate\Support\Carbon;
 use App\Models\ApiKey;
-use Illuminate\Support\Str;
-use Carbon\Carbon;
 
 class ApiKeyService
 {
-    public function generate(int $userId, int $validDays = 30): ApiKey
+    public function __construct(
+        private readonly ApiKeyRepositoryInterface $repository
+    )
     {
-        return ApiKey::create([
-            'user_id' => $userId,
-            'key'     => Str::random(32),
-            'secret'  => Str::random(64),
-            'expires_at' => Carbon::now()->addDays($validDays),
+    }
+
+    public function create(string $name, ?array $scopes = [], ?int $expiresInDays = null): ApiKeyDTO
+    {
+        $apiKey = $this->repository->create([
+            'name' => $name,
+            'key' => ApiKey::generateKey(),
+            'scopes' => $scopes,
+            'expires_at' => $expiresInDays ? Carbon::now()->addDays($expiresInDays) : null,
         ]);
+
+        return new ApiKeyDTO(
+            $apiKey->id,
+            $apiKey->name,
+            $apiKey->key,
+            $apiKey->scopes,
+            $apiKey->expires_at,
+            $apiKey->rotated_at
+        );
     }
 
-    public function rotate(ApiKey $apiKey, int $graceDays = 7): ApiKey
+    public function rotate(int $id): ?ApiKeyDTO
     {
-        $oldKey = $apiKey->replicate();
-        $oldKey->grace_until = Carbon::now()->addDays($graceDays);
-        $oldKey->save();
+        $apiKey = $this->repository->findById($id);
+        if (!$apiKey) {
+            return null;
+        }
 
-        $apiKey->key = Str::random(32);
-        $apiKey->secret = Str::random(64);
-        $apiKey->expires_at = Carbon::now()->addDays(30);
-        $apiKey->grace_until = null;
-        $apiKey->save();
+        $oldKey = $apiKey->key;
+        $apiKey->rotated_at = now();
+        $apiKey->key = ApiKey::generateKey();
+        $this->repository->update($apiKey, $apiKey->getAttributes());
 
-        return $apiKey;
-    }
-
-    public function verifyHmac(ApiKey $apiKey, string $signature, string $payload): bool
-    {
-        $expected = hash_hmac('sha256', $payload, $apiKey->secret);
-
-        return hash_equals($expected, $signature);
+        return new ApiKeyDTO(
+            $apiKey->id,
+            $apiKey->name,
+            $apiKey->key,
+            $apiKey->scopes,
+            $apiKey->expires_at,
+            $apiKey->rotated_at
+        );
     }
 }

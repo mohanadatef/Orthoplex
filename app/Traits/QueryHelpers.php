@@ -3,13 +3,9 @@
 namespace App\Traits;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Str;
 
 trait QueryHelpers
 {
-    protected array $allowedFilters = [];
-    protected array $allowedFields = [];
-    protected array $allowedIncludes = [];
 
     protected function applyFilters(Builder $query, ?string $filter): void
     {

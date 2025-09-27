@@ -1,14 +1,20 @@
 <?php
+
 namespace App\DTOs;
 
-class ApiKeyDTO {
-    public $name;
-    public $scopes;
-    public $expires_in_days;
+use Illuminate\Support\Carbon;
 
-    public function __construct(array $data) {
-        $this->name = $data['name'] ?? null;
-        $this->scopes = $data['scopes'] ?? [];
-        $this->expires_in_days = $data['expires_in_days'] ?? null;
-    }
+/**
+ * Data Transfer Object for ApiKey
+ */
+class ApiKeyDTO
+{
+    public function __construct(
+        public int $id,
+        public string $name,
+        public string $key,
+        public array $scopes = [],
+        public ?Carbon $expires_at = null,
+        public ?Carbon $rotated_at = null,
+    ) {}
 }

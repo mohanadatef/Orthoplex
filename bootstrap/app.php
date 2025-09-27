@@ -13,21 +13,23 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware) {
         $middleware->group('api', [
-            \Illuminate\Routing\Middleware\SubstituteBindings::class,
-            \App\Http\Middleware\Localization::class,
-            \App\Http\Middleware\IdempotencyMiddleware::class,
             \App\Http\Middleware\AuditLogMiddleware::class,
-            \App\Http\Middleware\ApiKeyMiddleware::class,
+            \App\Http\Middleware\ApiKeyAuthMiddleware::class,
+            \App\Http\Middleware\DeleteRequestsThrottle::class,
+            \App\Http\Middleware\LoginThrottle::class,
+            \App\Http\Middleware\IdempotencyMiddleware::class,
+            \App\Http\Middleware\LocalizationMiddleware::class,
 
-            \Illuminate\Routing\Middleware\ThrottleRequests::class . ':global,60,1',
 
         ]);
 
         $middleware->alias([
-            'localize' => \App\Http\Middleware\Localization::class,
-            'throttle' => \Illuminate\Routing\Middleware\ThrottleRequests::class,
-            'throttle.auth' => \Illuminate\Routing\Middleware\ThrottleRequests::class . ':auth,10,1',
-            'throttle.heavy' => \Illuminate\Routing\Middleware\ThrottleRequests::class . ':heavy,5,1',
+            'idempotency'       => \App\Http\Middleware\IdempotencyMiddleware::class,
+            'audit'             => \App\Http\Middleware\AuditLogMiddleware::class,
+            'api.key'           => \App\Http\Middleware\ApiKeyAuthMiddleware::class,
+            'delete-requests'   => \App\Http\Middleware\DeleteRequestsThrottle::class,
+            'login.throttle'    => \App\Http\Middleware\LoginThrottle::class,
+            'localization' => \App\Http\Middleware\LocalizationMiddleware::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {

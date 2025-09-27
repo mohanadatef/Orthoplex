@@ -1,56 +1,52 @@
 <?php
+
 namespace App\Services;
-use App\Models\Webhook;
-use App\Repositories\WebhookRepository;
+
 use App\DTOs\WebhookDTO;
+use App\Repositories\Contracts\WebhookRepositoryInterface;
 use Illuminate\Support\Facades\Http;
+use App\Models\Webhook;
 
-class WebhookService {
-    protected $repos;
-    public function __construct(WebhookRepository $repos) {
-        $this->repos = $repos;
-    }
+class WebhookService
+{
+    public function __construct(
+        private readonly WebhookRepositoryInterface $repository
+    ) {}
 
-    public function dispatch(WebhookDTO $dto) {
-        $record = $this->repos->create([
-            'url' => $dto->url,
-            'event' => $dto->event,
+    public function receive(WebhookDTO $dto): Webhook
+    {
+        $webhook = $this->repository->create([
+            'url'     => $dto->url,
+            'event'   => $dto->event,
             'payload' => $dto->payload,
-            'status' => 'pending'
+            'status'  => 'pending',
         ]);
 
         try {
-            $res = Http::post($dto->url, $dto->payload);
-            $record->attempts = 1;
-            if ($res->successful()) {
-                $record->status = 'delivered';
-            } else {
-                $record->status = 'failed';
-                $record->last_error = $res->body();
-                $record->next_attempt_at = now()->addMinutes(5);
+            $res = Http::timeout(8)->post($webhook->url, $webhook->payload);
+            $update = [
+                'attempts' => 1,
+                'status'   => $res->successful() ? 'delivered' : 'failed',
+            ];
+            if (! $res->successful()) {
+                $update['last_error'] = $res->body();
+                $update['next_attempt_at'] = now()->addMinutes(5);
             }
-            $record->save();
+            $this->repository->update($webhook,$update);
         } catch (\Exception $e) {
-            $record->status = 'failed';
-            $record->last_error = $e->getMessage();
-            $record->attempts = 1;
-            $record->next_attempt_at = now()->addMinutes(5);
-            $record->save();
+            $this->repository->update($webhook,[
+                'status' => 'failed',
+                'last_error' => $e->getMessage(),
+                'attempts' => 1,
+                'next_attempt_at' => now()->addMinutes(5),
+            ]);
         }
-        return $record;
+
+        return $webhook->refresh();
     }
 
-    public function sendWebhook(Webhook $webhook, array $payload): void
+    public function getStatus(int $id): ?Webhook
     {
-        $org = $webhook->org;
-        $secret = $org->webhook_secret;
-
-        $body = json_encode($payload);
-        $signature = hash_hmac('sha256', $body, $secret);
-
-        Http::withHeaders([
-            'X-Signature' => $signature,
-            'Content-Type' => 'application/json'
-        ])->post($webhook->url, $payload);
+        return $this->repository->findById($id);
     }
 }

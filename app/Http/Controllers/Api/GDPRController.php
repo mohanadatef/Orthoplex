@@ -1,86 +1,98 @@
 <?php
+
 namespace App\Http\Controllers\Api;
+
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use App\Jobs\ExportUserDataJob;
-use App\Models\DeleteRequest;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Requests\GDPR\ExportRequest;
+use App\Http\Requests\GDPR\DeleteAccountRequest;
+use App\DTOs\DeleteRequestDTO;
+use App\Services\GDPRService;
+use Illuminate\Http\JsonResponse;
 use OpenApi\Annotations as OA;
 
-/**
- * @OA\Post(
- *   path="/api/v1/gdpr/export",
- *   tags={"GDPR"},
- *   summary="Request export of user data",
- *   security={{"bearerAuth":{}}},
- *   @OA\Response(response=200, description="Export started")
- * )
- *
- * @OA\Post(
- *   path="/api/v1/gdpr/delete-request",
- *   tags={"GDPR"},
- *   summary="Request account deletion",
- *   security={{"bearerAuth":{}}},
- *   @OA\RequestBody(
- *     required=false,
- *     @OA\JsonContent(@OA\Property(property="reason", type="string"))
- *   ),
- *   @OA\Response(response=200, description="Delete request received")
- * )
- */
-class GDPRController extends Controller {
-    public function export(Request $request) {
-        $user = Auth::user();
-        ExportUserDataJob::dispatch($user->id);
+class GDPRController extends Controller
+{
+    public function __construct(
+        private readonly GDPRService $gdprService
+    ) {}
+
+    /**
+     * @OA\Post(
+     *   path="/api/v1/gdpr/export",
+     *   tags={"GDPR"},
+     *   summary="Request export of user data",
+     *   security={{"bearerAuth":{}}},
+     *   @OA\Response(response=200, description="Export started")
+     * )
+     */
+    public function export(ExportRequest $request): JsonResponse
+    {
+        $this->gdprService->exportUserData();
         return response()->json(['message' => 'Export started']);
     }
 
-    public function requestDelete(Request $request) {
-        $user = Auth::user();
-        $dr = DeleteRequest::create([
-            'user_id' => $user->id,
-            'status' => 'pending',
-            'reason' => $request->input('reason')
-        ]);
+    /**
+     * @OA\Post(
+     *   path="/api/v1/gdpr/delete-request",
+     *   tags={"GDPR"},
+     *   summary="Request account deletion",
+     *   security={{"bearerAuth":{}}},
+     *   @OA\RequestBody(
+     *     @OA\JsonContent(@OA\Property(property="reason", type="string"))
+     *   ),
+     *   @OA\Response(response=200, description="Delete request received")
+     * )
+     */
+    public function requestDelete(DeleteAccountRequest $request): JsonResponse
+    {
+        $dto = new DeleteRequestDTO(auth()->id(), 'pending', $request->validated('reason'));
+        $dr = $this->gdprService->requestDelete($dto);
+
         return response()->json(['message' => 'Delete request received', 'id' => $dr->id]);
     }
-    public function approve($id)
+
+    /**
+     * @OA\Post(
+     *   path="/api/v1/gdpr/delete-request/{id}/approve",
+     *   tags={"GDPR"},
+     *   summary="Approve account deletion request",
+     *   security={{"bearerAuth":{}}},
+     *   @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *   @OA\Response(response=200, description="Delete request approved")
+     * )
+     */
+    public function approve(int $id): JsonResponse
     {
         $this->authorize('approve', \App\Models\DeleteRequest::class);
 
-        $req = \App\Models\DeleteRequest::findOrFail($id);
-        if ($req->status !== 'pending') {
-            return response()->json(['message'=>'Already processed'],400);
+        $req = $this->gdprService->approve($id);
+
+        if (!$req) {
+            return response()->json(['message'=>'Already processed or not found'],400);
         }
-
-        $req->status = 'approved';
-        $req->approved_by = auth()->id();
-        $req->approved_at = now();
-        $req->save();
-
-        // Trigger account deletion job
-        \App\Jobs\DeleteUserDataJob::dispatch($req->user);
-
-        $req->user->notify(new \App\Notifications\DeleteRequestApprovedNotification());
 
         return response()->json(['message'=>'Delete request approved']);
     }
 
-    public function reject($id)
+    /**
+     * @OA\Post(
+     *   path="/api/v1/gdpr/delete-request/{id}/reject",
+     *   tags={"GDPR"},
+     *   summary="Reject account deletion request",
+     *   security={{"bearerAuth":{}}},
+     *   @OA\Parameter(name="id", in="path", required=true, @OA\Schema(type="integer")),
+     *   @OA\Response(response=200, description="Delete request rejected")
+     * )
+     */
+    public function reject(int $id): JsonResponse
     {
         $this->authorize('approve', \App\Models\DeleteRequest::class);
 
-        $req = \App\Models\DeleteRequest::findOrFail($id);
-        if ($req->status !== 'pending') {
-            return response()->json(['message'=>'Already processed'],400);
+        $req = $this->gdprService->reject($id);
+
+        if (!$req) {
+            return response()->json(['message'=>'Already processed or not found'],400);
         }
-
-        $req->status = 'rejected';
-        $req->approved_by = auth()->id();
-        $req->approved_at = now();
-        $req->save();
-
-        $req->user->notify(new \App\Notifications\DeleteRequestRejectedNotification());
 
         return response()->json(['message'=>'Delete request rejected']);
     }
