@@ -1,95 +1,64 @@
-version: "3.9"
+version: '3.8'
 
 services:
-    app:
-        build:
-            context: .
-            dockerfile: docker/Dockerfile
-        container_name: laravel_app
-        restart: unless-stopped
-        environment:
-            APP_ENV: local
-            APP_DEBUG: "true"
-            APP_URL: http://localhost
-            DB_HOST: mysql
-            REDIS_HOST: redis
-            QUEUE_CONNECTION: redis
-            CACHE_DRIVER: redis
-            SESSION_DRIVER: redis
-            MAIL_MAILER: smtp
-            MAIL_HOST: mailhog
-            MAIL_PORT: 1025
-        volumes:
-            - ./:/var/www/html
-        depends_on:
-            - mysql
-            - redis
-            - mailhog
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/var/www/html
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    depends_on:
+      - mysql
+      - redis
+      - mailhog
+    environment:
+      - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
 
-    queue:
-        build:
-            context: .
-            dockerfile: docker/Dockerfile
-        container_name: laravel_queue
-        restart: unless-stopped
-        working_dir: /var/www/html
-        command: sh -lc "php artisan queue:work --queue=default --sleep=1 --tries=3 --max-time=3600"
-        environment:
-            DB_HOST: mysql
-            REDIS_HOST: redis
-            QUEUE_CONNECTION: redis
-        volumes:
-            - ./:/var/www/html
-        depends_on:
-            - app
-            - redis
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: "${DB_DATABASE}"
+      MYSQL_USER: "${DB_USERNAME}"
+      MYSQL_PASSWORD: "${DB_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${DB_PASSWORD}"
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
 
-    cron:
-        build:
-            context: .
-            dockerfile: docker/Dockerfile
-        container_name: laravel_cron
-        restart: unless-stopped
-        working_dir: /var/www/html
-        command: sh -lc 'printenv > /etc/environment && echo "* * * * * cd /var/www/html && php artisan schedule:run >> /var/log/cron.log 2>&1" | crontab - && cron -f'
-        environment:
-            DB_HOST: mysql
-            REDIS_HOST: redis
-            QUEUE_CONNECTION: redis
-        volumes:
-            - ./:/var/www/html
-        depends_on:
-            - app
-            - redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
 
-    mysql:
-        image: mysql:8.0
-        container_name: mysql
-        restart: unless-stopped
-        environment:
-            MYSQL_DATABASE: laravel
-            MYSQL_ROOT_PASSWORD: root
-            MYSQL_USER: laravel
-            MYSQL_PASSWORD: secret
-        ports:
-            - "3306:3306"
-        volumes:
-            - mysql-data:/var/lib/mysql
+  mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "8025:8025"
 
-    redis:
-        image: redis:7-alpine
-        container_name: redis
-        restart: unless-stopped
-        ports:
-            - "6379:6379"
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: php artisan queue:work --sleep=1 --tries=5 --timeout=90
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - redis
+      - mysql
 
-    mailhog:
-        image: mailhog/mailhog:v1.0.1
-        container_name: mailhog
-        restart: unless-stopped
-        ports:
-            - "8025:8025"   # UI
-            - "1025:1025"   # SMTP
+  horizon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: php artisan horizon
+    volumes:
+      - ./:/var/www/html
+    depends_on:
+      - redis
+      - mysql
 
 volumes:
-    mysql-data:
+  mysql_data:

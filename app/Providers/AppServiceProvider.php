@@ -3,30 +3,15 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Support\Facades\RateLimiter;
+use Domain\Repositories\UserRepository;
+use App\Repositories\EloquentUserRepository;
+
 class AppServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
     public function register(): void
     {
-        //
+        $this->app->bind(UserRepository::class, EloquentUserRepository::class);
     }
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        RateLimiter::for('login', function ($request) {
-            $email = (string) $request->email;
-            return Limit::perMinute(5)->by($email.$request->ip());
-        });
-
-        RateLimiter::for('delete-requests', function ($request) {
-            return Limit::perMinute(2)->by($request->user()->id ?? $request->ip());
-        });
-    }
+    public function boot(): void {}
 }

@@ -1,0 +1,139 @@
+
+openapi: 3.0.3
+info:
+  title: Orthoplex API
+  version: 0.1.0
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /auth/register:
+    post:
+      summary: Register new org owner
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string }
+                password_confirmation: { type: string }
+                org_name: { type: string }
+      responses:
+        "201": { description: Created }
+  /auth/login:
+    post:
+      summary: Login with email/password
+      responses:
+        "200": { description: OK }
+  /users:
+    get:
+      summary: List users (cursor paginated)
+      responses:
+        "200": { description: OK }
+
+
+/invitations:
+  post:
+    summary: Send an invitation email
+    parameters:
+      - in: header
+        name: Idempotency-Key
+        schema: { type: string }
+    responses:
+      "201": { description: Created }
+/invitations/accept:
+  post:
+    summary: Accept invitation with token
+    responses:
+      "201": { description: User created }
+
+
+/auth/logout:
+  post:
+    summary: Logout and revoke JWT
+    responses:
+      "200": { description: OK }
+/users/{id}:
+  get:
+    summary: Get a user by id
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema: { type: string }
+    responses:
+      "200": { description: OK }
+/webhooks/deliver:
+  post:
+    summary: Deliver a webhook (queues a job)
+    responses:
+      "200": { description: Enqueued }
+/users/{id}/export:
+  get:
+    summary: Queue GDPR export for user
+    responses:
+      "200": { description: Enqueued }
+/users/{id}/gdpr-delete:
+  post:
+    summary: Request GDPR delete approval
+    responses:
+      "200": { description: Enqueued }
+
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+  - bearerAuth: []
+
+
+
+/auth/verify-email:
+  post:
+    summary: Verify email with token
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              token: { type: string }
+    responses:
+      "200": { description: OK }
+/auth/magic-link:
+  post:
+    summary: Send a magic login link
+    responses:
+      "200": { description: OK }
+/auth/magic-link/consume:
+  get:
+    summary: Consume magic link token to login
+    parameters:
+      - in: query
+        name: token
+        required: true
+        schema: { type: string }
+    responses:
+      "200": { description: OK }
+/gdpr/exports/{token}:
+  get:
+    summary: One-time download for GDPR export
+    parameters:
+      - in: path
+        name: token
+        required: true
+        schema: { type: string }
+    responses:
+      "200": { description: Download }
+/orgs/provision:
+  post:
+    summary: Inbound org provisioning (API key + signature)
+    responses:
+      "200": { description: OK }

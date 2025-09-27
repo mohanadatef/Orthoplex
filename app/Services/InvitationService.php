@@ -1,36 +1,39 @@
 <?php
-
 namespace App\Services;
 
-use App\Models\Invitation;
+use App\Models\{Invitation, Org, User};
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Mail;
+use Carbon\Carbon;
 
-class InvitationService
+final class InvitationService
 {
-    public function create(int $orgId, string $email, string $role = 'member'): Invitation
+    public function invite(User $actor, string $email): array
     {
-        return Invitation::create([
-            'org_id' => $orgId,
-            'email'  => $email,
-            'role'   => $role,
-            'token'  => Str::random(64),
+        $token = Str::random(48);
+        $inv = Invitation::create([
+            'org_id' => $actor->org_id,
+            'email' => $email,
+            'token' => hash('sha256', $token),
+            'expires_at' => Carbon::now()->addDays(7),
         ]);
+        // Mail::to($email)->queue(new \App\Mail\OrgInvitationMail($token)); // scaffold
+        return ['token' => $token];
     }
 
-    public function accept(string $token, int $userId): bool
+    public function accept(string $rawToken, string $name, string $password): User
     {
-        $inv = Invitation::where('token',$token)->where('accepted',false)->first();
-        if(!$inv) return false;
-
-        \DB::table('org_user')->insert([
-            'org_id' => $inv->org_id,
-            'user_id'=> $userId,
-            'role'   => $inv->role,
-        ]);
-
-        $inv->accepted = true;
+        $token = hash('sha256', $rawToken);
+        $inv = Invitation::where('token',$token)->whereNull('accepted_at')->firstOrFail();
+        $inv->accepted_at = now();
         $inv->save();
 
-        return true;
+        return User::create([
+            'name' => $name,
+            'email' => $inv->email,
+            'password' => bcrypt($password),
+            'org_id' => $inv->org_id,
+            'email_verified_at' => now()
+        ]);
     }
 }

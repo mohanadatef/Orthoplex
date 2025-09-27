@@ -1,19 +1,8 @@
 <?php
-use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
-class IdempotencyTest extends TestCase {
-    use RefreshDatabase;
-
-    public function test_idempotency_prevents_double_processing()
-    {
-        $key = 'test-key-123';
-        $payload = ['email' => 'test@example.com','password'=>'123456'];
-
-        $this->postJson('/api/register', $payload, ['Idempotency-Key' => $key])
-            ->assertStatus(200);
-
-        $this->postJson('/api/register', $payload, ['Idempotency-Key' => $key])
-            ->assertStatus(200);
-    }
-}
+it('returns same response with same idempotency key', function () {
+    $payload = ['name'=>'A','email'=>'a@example.com','password'=>'password123'];
+    $headers = ['Idempotency-Key' => 'abc123'];
+    $this->postJson('/api/auth/register', $payload, $headers)->assertStatus(201);
+    $this->postJson('/api/auth/register', $payload, $headers)->assertStatus(201);
+});

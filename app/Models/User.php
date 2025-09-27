@@ -1,40 +1,38 @@
 <?php
+
 namespace App\Models;
 
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
-use Tymon\JWTAuth\Contracts\JWTSubject;
 use Spatie\Permission\Traits\HasRoles;
-use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+use Laravel\Scout\Searchable;
 
-
-class User extends Authenticatable implements JWTSubject , MustVerifyEmail
+class User extends Authenticatable
 {
-    use Notifiable, HasRoles,MustVerifyEmailTrait,SoftDeletes;
+    use HasFactory, SoftDeletes, HasRoles, Searchable;
 
-    protected $fillable = ['name','email','password','locale','active'];
-    protected $hidden = ['password','remember_token'];
-    protected $casts = ['email_verified_at' => 'datetime', 'active' => 'boolean'];
-    protected $dates = ['deleted_at'];
-    public function getJWTIdentifier() { return $this->getKey(); }
-    public function getJWTCustomClaims() { return []; }
+    protected $fillable = [
+        'name', 'email', 'password', 'org_id', 'email_verified_at', 'last_login_at', 'login_count', 'version',
+        'two_factor_secret', 'two_factor_enabled'
+    ];
 
-    public function orgs() {
-        return $this->belongsToMany(Org::class, 'org_user')->withTimestamps()->withPivot('role');
-    }
-    public function loginEvents() {
-        return $this->hasMany(LoginEvent::class);
-    }
+    protected $hidden = ['password', 'two_factor_secret'];
 
-    public function twoFactorSecret()
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'last_login_at' => 'datetime',
+        'two_factor_enabled' => 'boolean'
+    ];
+
+    public function org()
     {
-        return $this->hasOne(TwoFactorSecret::class);
+        return $this->belongsTo(Org::class);
     }
+}
 
-    public function twoFactorBackupCodes()
-    {
-        return $this->hasMany(TwoFactorBackupCode::class);
-    }
+
+public function toSearchableArray(): array
+{
+    return ['id'=>$this->id,'name'=>$this->name,'email'=>$this->email,'org_id'=>$this->org_id];
 }
