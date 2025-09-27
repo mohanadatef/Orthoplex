@@ -15,7 +15,7 @@ class RsqlParser
     public function parse(?string $filter): FilterGroupDTO
     {
         if (!$filter) {
-            return new FilterGroupDTO(orGroups: []); // بدون فلاتر
+            return new FilterGroupDTO(orGroups: []);
         }
 
         // AND-split by ';'

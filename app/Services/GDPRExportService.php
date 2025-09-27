@@ -13,19 +13,14 @@ class GDPRExportService
         private readonly string $disk = 'private'
     ) {}
 
-    /**
-     * يبني ZIP فيه ملفات JSON متعددة: user.json, orgs.json, roles.json, api_keys.json, logins.json, audit.json
-     * ويرجّع [disk, path] لمسار الملف النهائي.
-     */
+
     public function buildZipForUser(User $user): array
     {
-        // 1) جهّز مجلد عمل مؤقت
         $tmpBase = storage_path('app/tmp/gdpr/' . $user->id . '/' . Str::uuid());
         if (! is_dir($tmpBase)) {
             mkdir($tmpBase, 0775, true);
         }
 
-        // 2) حضّر البيانات (عدّل/وسّع حسب احتياجك)
         file_put_contents($tmpBase . '/user.json', json_encode([
             'id'         => $user->id,
             'name'       => $user->name,
@@ -34,7 +29,6 @@ class GDPRExportService
             'updated_at' => $user->updated_at,
         ], JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
 
-        // علاقات (إن وُجدت)
         $orgs = $user->orgs()->select('orgs.id','orgs.name','orgs.webhook_url')->get();
         file_put_contents($tmpBase . '/orgs.json', $orgs->toJson(JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
 
@@ -60,7 +54,6 @@ class GDPRExportService
             file_put_contents($tmpBase . '/audit.json', $audit->toJson(JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE));
         }
 
-        // 3) اصنع ZIP محلياً ثم ارفعه للـ disk الخاص
         $zipName = 'gdpr_export_' . $user->id . '_' . now()->format('Ymd_His') . '.zip';
         $zipFullPath = $tmpBase . '/' . $zipName;
 
@@ -74,16 +67,14 @@ class GDPRExportService
         }
         $zip->close();
 
-        // 4) خزّنه على disk خاص
         $stream = fopen($zipFullPath, 'r');
         $targetPath = 'gdpr/' . $user->id . '/' . $zipName;
         Storage::disk($this->disk)->put($targetPath, $stream);
         fclose($stream);
 
-        // تنظيف الملفات المؤقتة (اختياري)
         @array_map('unlink', glob($tmpBase . '/*.json'));
         @unlink($zipFullPath);
-        @rmdir($tmpBase); // لو فاضي
+        @rmdir($tmpBase);
 
         return [$this->disk, $targetPath];
     }

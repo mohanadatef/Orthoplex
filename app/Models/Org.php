@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Org extends Model {
     use SoftDeletes;
-    protected $fillable = ['name','domain','settings'];
+    protected $fillable = ['name','domain','settings','webhook_secret'];
     protected $casts = ['settings' => 'array'];
 
     public function users() {

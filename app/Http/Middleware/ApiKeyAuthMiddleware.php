@@ -3,24 +3,35 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
 use App\Models\ApiKey;
-use Symfony\Component\HttpFoundation\Response;
 
 class ApiKeyAuthMiddleware
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle($request, Closure $next)
     {
-        $key = $request->header('X-API-KEY');
+        $providedKey = $request->header('X-API-Key');
+        $signature   = $request->header('X-Signature');
+        $timestamp   = $request->header('X-Timestamp');
 
-        if (! $key) {
-            return response()->json(['message' => 'API key missing'], 401);
+        if (! $providedKey || ! $signature || ! $timestamp) {
+            return response()->json(['message' => 'Missing API authentication headers'], 401);
         }
 
-        $apiKey = ApiKey::where('key',$key)->first();
+        $apiKey = ApiKey::where('key', $providedKey)->first();
+        if (! $apiKey || $apiKey->isExpired()) {
+            return response()->json(['message' => 'Invalid or expired API key'], 401);
+        }
 
-        if (! $apiKey || ($apiKey->expires_at && $apiKey->expires_at->isPast())) {
-            return response()->json(['message' => 'Invalid or expired API key'], 403);
+        $secret = $apiKey->org->webhook_secret ?? null;
+        if (! $secret) {
+            return response()->json(['message' => 'Org secret missing'], 401);
+        }
+
+        $payload = $request->getContent();
+        $expected = hash_hmac('sha256', $timestamp . '.' . $payload, $secret);
+
+        if (! hash_equals($expected, $signature)) {
+            return response()->json(['message' => 'Invalid signature'], 401);
         }
 
         return $next($request);

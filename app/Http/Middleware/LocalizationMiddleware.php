@@ -11,7 +11,6 @@ class LocalizationMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
-        // الأولوية: query string > header > default
         $locale = $request->query('lang')
             ?? $request->header('Accept-Language')
             ?? config('app.locale');

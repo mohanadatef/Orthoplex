@@ -78,20 +78,15 @@ services:
             -
     redis:
         image: redis:7
-        ports:
-            - "6379:6379"
-        volumes:
-            - redis_data:/data
-        networks:
-            - laravel
-            -
+        ports: [ "6379:6379" ]
+        volumes: [ "redis_data:/data" ]
+        networks: [ "laravel" ]
+
     mailhog:
         image: mailhog/mailhog
-        ports:
-            - "1025:1025"   # SMTP
-            - "8025:8025"   # Web UI
-        networks:
-            - laravel
+        ports: [ "1025:1025", "8025:8025" ]
+        networks: [ "laravel" ]
 
 volumes:
     mysql-data:
+    redis_data:

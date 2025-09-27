@@ -37,7 +37,7 @@ Route::prefix('v1')
     Route::get('email/verify/{id}/{hash}', [VerificationController::class,'verify'])
         ->name('verification.verify');
     Route::post('email/resend', [VerificationController::class,'resend'])
-        ->middleware(['throttle:5,1']);
+        ->middleware(['throttle:5,1','audit:resend_verification']);
 
     /**
      * ========================
@@ -84,7 +84,7 @@ Route::prefix('v1')
     Route::middleware(['auth:api','audit:invitation'])->group(function () {
         Route::post('invitations/invite', [InvitationController::class,'invite'])
             ->middleware('can:users.invite');
-        Route::post('invitations/accept', [InvitationController::class,'accept']);
+        Route::post('invitations/accept', [InvitationController::class,'accept'])->middleware('audit:accept_invitation');
     });
 
     /**

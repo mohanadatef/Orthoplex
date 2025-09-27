@@ -7,32 +7,28 @@ use Illuminate\Support\Facades\DB;
 
 class AggregateLoginDaily extends Command
 {
-    protected $signature = 'logins:aggregate-daily';
-    protected $description = 'Aggregate login events into login_daily table';
+    protected $signature = 'analytics:aggregate-logins';
+    protected $description = 'Aggregate daily login events into login_daily table';
 
-    public function handle(): void
+    public function handle(): int
     {
-        $this->info('Aggregating login events...');
+        $yesterday = now()->subDay()->toDateString();
 
-        $events = DB::table('login_events')
-            ->selectRaw('user_id, DATE(created_at) as login_date, COUNT(*) as total')
-            ->groupBy('user_id','date')
+        $data = DB::table('login_events')
+            ->select('user_id', DB::raw('DATE(created_at) as day'), DB::raw('COUNT(*) as total'))
+            ->whereDate('created_at', $yesterday)
+            ->groupBy('user_id', 'day')
             ->get();
 
-        foreach ($events as $row) {
+        foreach ($data as $row) {
             DB::table('login_daily')->updateOrInsert(
-                [
-                    'user_id'    => $row->user_id,
-                    'date' => $row->login_date,
-                ],
-                [
-                    'count'      => $row->total,
-                    'updated_at' => now(),
-                    'created_at' => now(),
-                ]
+                ['user_id' => $row->user_id, 'day' => $row->day],
+                ['count' => $row->total]
             );
         }
 
-        $this->info('Aggregation complete.');
+        $this->info("Aggregated logins for {$yesterday}");
+
+        return Command::SUCCESS;
     }
 }

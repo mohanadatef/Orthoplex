@@ -1,5 +1,6 @@
 <?php
 namespace App\Models;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Str;
@@ -14,7 +15,11 @@ class ApiKey extends Model {
 
     public function isExpired(): bool
     {
-        return $this->expires_at && $this->expires_at->isPast();
+        $now = now();
+        if ($this->expires_at && $now->greaterThan($this->expires_at)) {
+            return !($this->grace_until && $now->lessThanOrEqualTo($this->grace_until));
+        }
+        return false;
     }
 
     public function inGracePeriod(): bool

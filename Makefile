@@ -28,5 +28,11 @@ test:
 bash:
 	docker-compose exec app bash
 
-bootstrap: up install key migrate seed
-	@echo "✅ Bootstrap done. Visit: http://localhost  | Mailhog: http://localhost:8025"
+bootstrap:
+	docker-compose build --no-cache
+	docker-compose up -d app db redis mailhog queue cron
+	docker-compose exec app composer install
+	docker-compose exec app php artisan key:generate
+	docker-compose exec app php artisan migrate --seed
+	docker-compose exec app php artisan l5-swagger:generate
+	docker-compose exec app php artisan storage:link

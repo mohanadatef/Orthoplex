@@ -1,39 +1,49 @@
 <?php
+
 namespace App\Jobs;
+
+use App\Models\Webhook;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
-use App\Models\Webhook;
+use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Http;
 
-class RetryFailedWebhooksJob implements ShouldQueue {
-    use Dispatchable, Queueable;
+class RetryFailedWebhooksJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
-    public function handle() {
-        $webhooks = Webhook::where('status','failed')->where('attempts','<',5)
-            ->where(function($q){
-                $q->whereNull('next_attempt_at')->orWhere('next_attempt_at','<=',now());
-            })->get();
+    public function handle(): void
+    {
+        $failed = Webhook::where('status', 'failed')
+            ->where('next_attempt_at', '<=', now())
+            ->limit(50)
+            ->get();
 
-        foreach ($webhooks as $webhook) {
+        foreach ($failed as $webhook) {
             try {
-                $res = Http::timeout(10)->post($webhook->url, $webhook->payload);
-                $webhook->attempts += 1;
+                $res = Http::timeout(8)->post($webhook->url, $webhook->payload);
+
                 if ($res->successful()) {
-                    $webhook->status = 'delivered';
-                    $webhook->last_error = null;
+                    $webhook->update([
+                        'status' => 'delivered',
+                        'last_error' => null,
+                    ]);
                 } else {
-                    $webhook->status = 'failed';
-                    $webhook->last_error = $res->body();
-                    $webhook->next_attempt_at = now()->addMinutes( (int) pow(2, $webhook->attempts) * 5 );
+                    $webhook->update([
+                        'attempts' => $webhook->attempts + 1,
+                        'last_error' => $res->body(),
+                        'next_attempt_at' => now()->addMinutes(5),
+                    ]);
                 }
             } catch (\Exception $e) {
-                $webhook->attempts += 1;
-                $webhook->status = 'failed';
-                $webhook->last_error = $e->getMessage();
-                $webhook->next_attempt_at = now()->addMinutes((int) pow(2, $webhook->attempts) * 5);
+                $webhook->update([
+                    'attempts' => $webhook->attempts + 1,
+                    'last_error' => $e->getMessage(),
+                    'next_attempt_at' => now()->addMinutes(5),
+                ]);
             }
-            $webhook->save();
         }
     }
 }

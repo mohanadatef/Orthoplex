@@ -25,7 +25,13 @@ class DeleteUserDataJob implements ShouldQueue
             'user_agent' => request()?->userAgent(),
         ]);
 
-        $this->user->delete();
+        \DB::transaction(function () {
+            $this->user->tokens()->delete();
+            $this->user->apiKeys()->delete();
+            $this->user->loginEvents()->delete();
+            $this->user->invitations()->delete();
+            $this->user->delete();
+        });
 
     }
 }

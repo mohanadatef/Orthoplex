@@ -8,7 +8,7 @@ class ProvisioningRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // تحكم بالـ Middleware
+        return true;
     }
 
     public function rules(): array

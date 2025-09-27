@@ -3,21 +3,24 @@
 namespace App\Http\Middleware;
 
 use Closure;
-use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Cache;
 
 class IdempotencyMiddleware
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle($request, Closure $next)
     {
-        if ($request->isMethod('POST')) {
-            $key = 'idempotency:' . sha1($request->getRequestUri() . $request->getContent());
+        if ($request->isMethod('post')) {
+            $key = $request->header('Idempotency-Key');
 
-            if (cache()->has($key)) {
-                return response()->json(['message' => 'Duplicate request detected'], 409);
+            if (! $key) {
+                return response()->json(['message' => 'Idempotency-Key header required'], 400);
             }
 
-            cache()->put($key, true, now()->addSeconds(30));
+            if (Cache::has($key)) {
+                return response()->json(['message' => 'Duplicate request'], 409);
+            }
+
+            Cache::put($key, true, now()->addMinutes(5));
         }
 
         return $next($request);
